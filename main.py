@@ -5,7 +5,7 @@ import os
 
 app = Flask(__name__)
 basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'crud.sqlite')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'main.sqlite')
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
 
@@ -19,16 +19,61 @@ class User(db.Model):
         self.username = username
         self.email = email
 
-
 class UserSchema(ma.Schema):
     class Meta:
         # Fields to expose
         fields = ('username', 'email')
 
+class Bike(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    longitude = db.Column(db.Integer)
+    latitude = db.Column(db.Integer)
+    available = db.Column(db.Boolean)
 
+    def __init__(self,longitude,latitude,available):
+        self.id = id
+        self.longitude = longitude
+        self.latitude = latitude
+        assert(type(available) is bool)
+        self.available = available
+
+class BikeSchema(ma.Schema):
+    class Meta:
+        fields = ('longitude','latitude','available')
+
+#init schemas
 user_schema = UserSchema()
 users_schema = UserSchema(many=True)
 
+bike_schema = BikeSchema()
+bikes_schema = BikeSchema(many=True)
+
+#Bike methods
+@app.route("/allbikes", methods=["GET"])
+def get_all_bikes():
+    all_bikes = Bike.query.all()
+    result = bike_schema.dump(all_bikes)
+    return jsonify(result.data)
+
+@app.route('/bike/<available>', methods=["GET"])
+def get_free_bikes(available):
+    bikes = Bike.query.filter_by(available=available)
+    return bike_schema.jsonify(bikes)
+
+@app.route("/bike/<id>", methods=["GET"])
+def bike_detail(id):
+    bike = Bike.query.get(id)
+    return bike_schema.jsonify(bike)
+
+@app.route("/bike/<id>", methods=["PUT"])
+def set_to_busy(id):
+    bike = Bike.query.get(id)
+
+    available = request.json['available']
+    bike.available = available
+
+    db.session.commit()
+    return bike_schema.jsonify(bike)
 
 # endpoint to create new user
 @app.route("/user", methods=["POST"])
@@ -85,3 +130,4 @@ def user_delete(id):
 
 if __name__ == '__main__':
     app.run(debug=True)
+
