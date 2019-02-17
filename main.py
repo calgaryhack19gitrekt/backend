@@ -33,8 +33,8 @@ class UserSchema(ma.Schema):
 
 class Bike(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    longitude = db.Column(db.Integer)
-    latitude = db.Column(db.Integer)
+    longitude = db.Column(db.Float)
+    latitude = db.Column(db.Float)
     available = db.Column(db.Boolean)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
@@ -49,6 +49,7 @@ class BikeSchema(ma.Schema):
     class Meta:
         fields = ('id','longitude','latitude','available', 'user_id')
         print(fields)
+
 
 #init schemas
 user_schema = UserSchema()
@@ -144,7 +145,49 @@ def bike_detail(id):
     return bike_schema.jsonify(bike)
 
 
-#def sort_bikes(bikes_list):
+def partition(arr,low,high): 
+	i = ( low-1 )		 # index of smaller element 
+	pivot = arr[high]	 # pivot 
+
+	for j in range(low , high): 
+		# If current element is smaller than or 
+        # equal to pivot 
+		if arr[j] <= pivot: 
+		
+			# increment index of smaller element 
+			i = i+1
+			arr[i],arr[j] = arr[j],arr[i] 
+
+	arr[i+1],arr[high] = arr[high],arr[i+1] 
+	return ( i+1 ) 
+
+# The main function that implements QuickSort 
+# arr[] --> Array to be sorted, 
+# low --> Starting index, 
+# high --> Ending index 
+
+# Function to do Quick sort 
+def quickSort(arr,low,high): 
+	if low < high: 
+
+		# pi is partitioning index, arr[p] is now 
+		# at right place 
+		pi = partition(arr,low,high) 
+
+		# Separately sort elements before 
+		# partition and after partition 
+		quickSort(arr, low, pi-1) 
+		quickSort(arr, pi+1, high) 
+
+def sort_bikes(bikes_list, positionX, positionY):
+    dist_arr = []
+    for i, bike in enumerate(bikes_list):
+        distance = abs( positionX - bike['latitude'] ) + abs( positionY -  bike['longitude']) 
+        dist_arr.append( {i:distance} )
+    
+    quickSort(dist_arr,0,len(dist_arr))
+
+    
 
 
 
@@ -153,8 +196,8 @@ def get_bike(available):
     bikes = Bike.query.filter_by(available=available).all()
     result = bikes_schema.dump(bikes)
 
-    avail_bikes = result.data
-    print(result.data)
+    # avail_bikes = sort_bikes(100,200,result.data)
+    # print(avail_bikes)
 
     return jsonify(result.data)
 
