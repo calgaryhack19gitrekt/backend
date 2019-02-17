@@ -1,13 +1,22 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
+import requests
 import os
+
+async_mode = None
+
 
 app = Flask(__name__)
 basedir = os.path.abspath(os.path.dirname(__file__))
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'main.sqlite')
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
+
+# app.config['SECRET_KEY'] = 'secret!'
+# # socketio = SocketIO(app, async_mode=async_mode)
+# thread = None
+# thread_lock = Lock()
 
 
 class User(db.Model):
@@ -144,53 +153,6 @@ def bike_detail(id):
     bike = Bike.query.get(id)
     return bike_schema.jsonify(bike)
 
-
-def partition(arr,low,high): 
-	i = ( low-1 )		 # index of smaller element 
-	pivot = arr[high]	 # pivot 
-
-	for j in range(low , high): 
-		# If current element is smaller than or 
-        # equal to pivot 
-		if arr[j] <= pivot: 
-		
-			# increment index of smaller element 
-			i = i+1
-			arr[i],arr[j] = arr[j],arr[i] 
-
-	arr[i+1],arr[high] = arr[high],arr[i+1] 
-	return ( i+1 ) 
-
-# The main function that implements QuickSort 
-# arr[] --> Array to be sorted, 
-# low --> Starting index, 
-# high --> Ending index 
-
-# Function to do Quick sort 
-def quickSort(arr,low,high): 
-	if low < high: 
-
-		# pi is partitioning index, arr[p] is now 
-		# at right place 
-		pi = partition(arr,low,high) 
-
-		# Separately sort elements before 
-		# partition and after partition 
-		quickSort(arr, low, pi-1) 
-		quickSort(arr, pi+1, high) 
-
-def sort_bikes(bikes_list, positionX, positionY):
-    dist_arr = []
-    for i, bike in enumerate(bikes_list):
-        distance = abs( positionX - bike['latitude'] ) + abs( positionY -  bike['longitude']) 
-        dist_arr.append( {i:distance} )
-    
-    quickSort(dist_arr,0,len(dist_arr))
-
-    
-
-
-
 @app.route("/bike/avail/<available>", methods=["GET"])
 def get_bike(available):
     bikes = Bike.query.filter_by(available=available).all()
@@ -208,9 +170,16 @@ def change_status(id):
 
     available = request.json['available']
     user_id = request.json['user_id']
+    longitude = request.json['longitude']
+    latitude = request.json['latitude']
 
     bike.available = available
     bike.user_id = user_id
+    bike.longitude = longitude
+    bike.latitude = latitude
+
+    r = requests.get('http://10.79.129.45:8080')
+    print(r.status_code)
 
     db.session.commit()
     return bike_schema.jsonify(bike)
@@ -218,4 +187,5 @@ def change_status(id):
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
