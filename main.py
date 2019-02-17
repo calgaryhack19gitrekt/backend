@@ -12,85 +12,70 @@ ma = Marshmallow(app)
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True)
+    firstName = db.Column(db.String(80), unique=False)
+    lastName = db.Column(db.String(80), unique=False)
+    phoneNum = db.Column(db.Integer, unique=True)
     email = db.Column(db.String(120), unique=True)
 
-    def __init__(self, username, email):
-        self.username = username
+    bikes = db.relationship('Bike', backref='user',lazy=True)
+
+    def __init__(self, firstName, lastName, phoneNum, email):
+        self.firstName = firstName
+        self.lastName = lastName
+        self.phoneNum = phoneNum
         self.email = email
 
 class UserSchema(ma.Schema):
     class Meta:
         # Fields to expose
-        fields = ('username', 'email')
+        fields = ('id', 'firstName', 'lastName', 'phoneNum', 'email')
+
 
 class Bike(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     longitude = db.Column(db.Integer)
     latitude = db.Column(db.Integer)
     available = db.Column(db.Boolean)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
-    def __init__(self,longitude,latitude,available):
-        self.id = id
+
+    def __init__(self,longitude,latitude):
         self.longitude = longitude
         self.latitude = latitude
-        assert(type(available) is bool)
-        self.available = available
+        self.available = True
+        self.user_id = -1
 
 class BikeSchema(ma.Schema):
     class Meta:
-        fields = ('longitude','latitude','available')
+        fields = ('id','longitude','latitude','available', 'user_id')
+        print(fields)
 
 #init schemas
 user_schema = UserSchema()
 users_schema = UserSchema(many=True)
 
-bike_schema = BikeSchema()
-bikes_schema = BikeSchema(many=True)
+bike_schema = BikeSchema(strict=True)
+bikes_schema = BikeSchema(many=True, strict=True)
 
-#Bike methods
-@app.route("/allbikes", methods=["GET"])
-def get_all_bikes():
-    all_bikes = Bike.query.all()
-    result = bike_schema.dump(all_bikes)
-    return jsonify(result.data)
-
-@app.route('/bike/<available>', methods=["GET"])
-def get_free_bikes(available):
-    bikes = Bike.query.filter_by(available=available)
-    return bike_schema.jsonify(bikes)
-
-@app.route("/bike/<id>", methods=["GET"])
-def bike_detail(id):
-    bike = Bike.query.get(id)
-    return bike_schema.jsonify(bike)
-
-@app.route("/bike/<id>", methods=["PUT"])
-def set_to_busy(id):
-    bike = Bike.query.get(id)
-
-    available = request.json['available']
-    bike.available = available
-
-    db.session.commit()
-    return bike_schema.jsonify(bike)
 
 # endpoint to create new user
-@app.route("/user", methods=["POST"])
+@app.route("/user/", methods=["POST"])
 def add_user():
-    username = request.json['username']
+    firstName = request.json['firstName']
+    lastName = request.json['lastName']
+    phoneNum = request.json['phoneNum']
     email = request.json['email']
     
-    new_user = User(username, email)
+    new_user = User(firstName, lastName, phoneNum, email)
 
     db.session.add(new_user)
     db.session.commit()
 
-    return jsonify(new_user)
+    return user_schema.jsonify(new_user)
 
 
 # endpoint to show all users
-@app.route("/user", methods=["GET"])
+@app.route("/user/", methods=["GET"])
 def get_user():
     all_users = User.query.all()
     result = users_schema.dump(all_users)
@@ -108,11 +93,16 @@ def user_detail(id):
 @app.route("/user/<id>", methods=["PUT"])
 def user_update(id):
     user = User.query.get(id)
-    username = request.json['username']
+
+    firstName = request.json['firstName']
+    lastName = request.json['lastName']
+    phoneNum = request.json['phoneNum']
     email = request.json['email']
 
+    user.firstName = firstName
+    user.lastName = lastName
+    user.phoneNum = phoneNum
     user.email = email
-    user.username = username
 
     db.session.commit()
     return user_schema.jsonify(user)
@@ -126,6 +116,61 @@ def user_delete(id):
     db.session.commit()
 
     return user_schema.jsonify(user)
+
+#Bike methods
+@app.route("/bike/", methods=["POST"])
+def add_bike():
+    longitude = request.json['longitude']
+    latitude = request.json['latitude']
+
+    new_bike = Bike(longitude,latitude)
+    
+    db.session.add(new_bike)
+    db.session.commit()
+    
+    return bike_schema.jsonify(new_bike)
+
+
+# endpoint to show all bikes
+@app.route("/bike/", methods=["GET"])
+def get_bikes():
+    all_bikes = Bike.query.all()
+    result = bikes_schema.dump(all_bikes)
+    return jsonify(result.data)
+
+@app.route("/bike/<id>",methods=["GET"])
+def bike_detail(id):
+    bike = Bike.query.get(id)
+    return bike_schema.jsonify(bike)
+
+
+#def sort_bikes(bikes_list):
+
+
+
+@app.route("/bike/avail/<available>", methods=["GET"])
+def get_bike(available):
+    bikes = Bike.query.filter_by(available=available).all()
+    result = bikes_schema.dump(bikes)
+
+    avail_bikes = result.data
+    print(result.data)
+
+    return jsonify(result.data)
+
+
+@app.route("/bike/<id>", methods=["PUT"])
+def change_status(id):
+    bike = Bike.query.get(id)
+
+    available = request.json['available']
+    user_id = request.json['user_id']
+
+    bike.available = available
+    bike.user_id = user_id
+
+    db.session.commit()
+    return bike_schema.jsonify(bike)
 
 
 if __name__ == '__main__':
