@@ -178,9 +178,6 @@ def change_status(id):
     bike.longitude = longitude
     bike.latitude = latitude
 
-    r = requests.get('http://10.79.129.45:8080')
-    print(r.status_code)
-
     db.session.commit()
     return bike_schema.jsonify(bike)
 
